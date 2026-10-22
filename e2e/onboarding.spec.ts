@@ -10,8 +10,12 @@ import { E2eWire } from "./fixtures/wire";
 const PROJECTS_PARENT = join(E2E_HOME_DIR, "thinkrail");
 const SETUP_PROMPT = "/skill:setting-up-a-project ";
 
-async function withWire<T>(run: (wire: E2eWire) => Promise<T>): Promise<T> {
-	const wire = await E2eWire.connect();
+async function withWire<T>(
+	baseURL: string | undefined,
+	run: (wire: E2eWire) => Promise<T>,
+): Promise<T> {
+	if (!baseURL) throw new Error("Onboarding fixtures require the isolated host URL");
+	const wire = await E2eWire.connect(Number(new URL(baseURL).port));
 	try {
 		return await run(wire);
 	} finally {
@@ -19,12 +23,17 @@ async function withWire<T>(run: (wire: E2eWire) => Promise<T>): Promise<T> {
 	}
 }
 
-function setOnboardingDismissed(onboardingDismissed: boolean): Promise<AppConfig> {
-	return withWire((wire) => wire.request("settings.update", { config: { onboardingDismissed } }));
+function setOnboardingDismissed(
+	baseURL: string | undefined,
+	onboardingDismissed: boolean,
+): Promise<AppConfig> {
+	return withWire(baseURL, (wire) =>
+		wire.request("settings.update", { config: { onboardingDismissed } }),
+	);
 }
 
-async function anyProviderConfigured(): Promise<boolean> {
-	const report = await withWire((wire) => wire.request("provider.status", {}));
+async function anyProviderConfigured(baseURL: string | undefined): Promise<boolean> {
+	const report = await withWire(baseURL, (wire) => wire.request("provider.status", {}));
 	return report.providers.some((p) => p.configured);
 }
 
@@ -53,13 +62,13 @@ async function connectFirstApiKeyProvider(page: Page, scope: Locator): Promise<s
 	return providerId ?? "";
 }
 
-function signOut(providerId: string | null): Promise<unknown> {
+function signOut(baseURL: string | undefined, providerId: string | null): Promise<unknown> {
 	if (!providerId) return Promise.resolve();
-	return withWire((wire) => wire.request("provider.logout", { providerId }));
+	return withWire(baseURL, (wire) => wire.request("provider.logout", { providerId }));
 }
 
-test.afterEach(async () => {
-	await setOnboardingDismissed(true);
+test.afterEach(async ({ baseURL }) => {
+	await setOnboardingDismissed(baseURL, true);
 	rmSync(PROJECTS_PARENT, { recursive: true, force: true });
 });
 
@@ -112,10 +121,16 @@ test("the rail + starts a new project without the setup chat, and a taken folder
 	await expect(second).toBeVisible();
 });
 
-test("a cold start shows the onboarding wizard once; Skip setup persists", async ({ page }) => {
-	await setOnboardingDismissed(false);
+test("a cold start shows the onboarding wizard once; Skip setup persists", async ({
+	page,
+	baseURL,
+}) => {
+	await setOnboardingDismissed(baseURL, false);
 	await openAppFresh(page);
-	test.skip(await anyProviderConfigured(), "an ambient provider makes this host a warm start");
+	test.skip(
+		await anyProviderConfigured(baseURL),
+		"an ambient provider makes this host a warm start",
+	);
 
 	const wizard = page.getByTestId("onboarding-wizard");
 	await expect(wizard).toHaveAttribute("data-step", "intro");
@@ -177,11 +192,14 @@ test("a cold start shows the onboarding wizard once; Skip setup persists", async
 });
 
 test("the analytics consent prompt waits until the wizard ends", async ({ page, baseURL }) => {
-	await setOnboardingDismissed(false);
+	await setOnboardingDismissed(baseURL, false);
 	await seedAnalyticsConsent(baseURL, false, false);
 	try {
 		await openAppFresh(page);
-		test.skip(await anyProviderConfigured(), "an ambient provider makes this host a warm start");
+		test.skip(
+			await anyProviderConfigured(baseURL),
+			"an ambient provider makes this host a warm start",
+		);
 
 		const wizard = page.getByTestId("onboarding-wizard");
 		await expect(wizard).toHaveAttribute("data-step", "intro");
@@ -197,10 +215,13 @@ test("the analytics consent prompt waits until the wizard ends", async ({ page, 
 
 test("the onboarding wizard walks connect → verify → project → build", {
 	tag: "@dev-seam",
-}, async ({ page }) => {
-	await setOnboardingDismissed(false);
+}, async ({ page, baseURL }) => {
+	await setOnboardingDismissed(baseURL, false);
 	await openAppFresh(page);
-	test.skip(await anyProviderConfigured(), "an ambient provider makes this host a warm start");
+	test.skip(
+		await anyProviderConfigured(baseURL),
+		"an ambient provider makes this host a warm start",
+	);
 
 	const wizard = page.getByTestId("onboarding-wizard");
 	let providerId: string | null = null;
@@ -227,16 +248,16 @@ test("the onboarding wizard walks connect → verify → project → build", {
 		const workspaceDialog = page.getByTestId("new-workspace-dialog");
 		await expect(workspaceDialog.getByTestId("ws-prompt")).toHaveValue(SETUP_PROMPT);
 	} finally {
-		await signOut(providerId);
+		await signOut(baseURL, providerId);
 	}
 });
 
 test("connecting from the Welcome banner closes the stack, toasts, and hands off", {
 	tag: "@dev-seam",
-}, async ({ page }) => {
+}, async ({ page, baseURL }) => {
 	await openAppFresh(page);
 	const banner = page.getByTestId("welcome-provider-warning");
-	test.skip(await anyProviderConfigured(), "an ambient provider hides the banner");
+	test.skip(await anyProviderConfigured(baseURL), "an ambient provider hides the banner");
 
 	let providerId: string | null = null;
 	try {
@@ -250,15 +271,16 @@ test("connecting from the Welcome banner closes the stack, toasts, and hands off
 		await expect(page.getByTestId("welcome-title")).toHaveText("You're set");
 		await expect(banner).toHaveCount(0);
 	} finally {
-		await signOut(providerId);
+		await signOut(baseURL, providerId);
 	}
 });
 
 test("a sign-in abandoned by a reload does not park the next attempt on Working…", async ({
 	page,
+	baseURL,
 }) => {
 	await openAppFresh(page);
-	test.skip(await anyProviderConfigured(), "an ambient provider hides the banner");
+	test.skip(await anyProviderConfigured(baseURL), "an ambient provider hides the banner");
 
 	const startAnthropicSignIn = async () => {
 		await page.getByTestId("welcome-connect-provider").click();
