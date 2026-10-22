@@ -9,7 +9,7 @@ import {
 	writeFileSync,
 } from "node:fs";
 import { tmpdir } from "node:os";
-import { join } from "node:path";
+import { join, resolve } from "node:path";
 import type { Project } from "@thinkrail/contracts";
 import {
 	approveProjectMcpServer,
@@ -264,7 +264,7 @@ test("createProject: a folder inside an enclosing repo becomes its own project",
 
 	const project = withoutUserGitConfig(() => createProject(outer, "inner"));
 	expect(project.path).toBe(realpathSync(join(outer, "inner")));
-	expect(gitOut(join(outer, "inner"), "rev-parse", "--show-toplevel")).toBe(
+	expect(resolve(gitOut(join(outer, "inner"), "rev-parse", "--show-toplevel"))).toBe(
 		realpathSync(join(outer, "inner")),
 	);
 });
