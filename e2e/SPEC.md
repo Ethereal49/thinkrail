@@ -33,6 +33,10 @@ CI splits the suite across machines with `THINKRAIL_E2E_JOB_SHARD=k/N`: the invo
 `N`, and its local lanes subdivide that slice into global Playwright shards `(k-1)·L+i` of `N·L`, so the
 union of all jobs is exactly the suite. The runner owns `--shard`; combining the variable with an explicit
 `--shard` argument is rejected.
+On CI a failed test gets one retry, and every config (source, binary, desktop) records its first attempt with
+`trace: "retain-on-first-failure"`: the trace is kept only when that attempt fails. The failing attempt is the
+evidence a flake leaves; `on-first-retry` traced only the retry, which for a flaky test is the passing run.
+Locally there are no retries and no traces.
 Every public browser E2E runner owns one process-lifetime idle-sleep assertion on macOS before setup or
 build work begins; source, agent, full, binary, and desktop modes all receive it. The assertion uses the
 system `caffeinate` executable with idle-system-sleep scope and the owning runner pid, so display sleep stays

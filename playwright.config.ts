@@ -65,7 +65,7 @@ export default defineConfig({
 	globalTeardown: "./e2e/global-teardown.ts",
 	use: {
 		baseURL: `http://localhost:${PORT}`,
-		trace: "on-first-retry",
+		trace: process.env.CI ? "retain-on-first-failure" : "on-first-retry",
 	},
 	projects: [{ name: "chromium", use: { ...devices["Desktop Chrome"] } }],
 	// Self-contained: build the web app, boot the host on an isolated port + state dir, and tear it all

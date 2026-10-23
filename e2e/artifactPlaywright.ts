@@ -69,7 +69,7 @@ export function artifactPlaywrightConfig(
 			: {}),
 		use: {
 			baseURL,
-			trace: "on-first-retry",
+			trace: process.env.CI ? "retain-on-first-failure" : "on-first-retry",
 		},
 		projects: [{ name: "chromium", use: { ...devices["Desktop Chrome"] } }],
 	};

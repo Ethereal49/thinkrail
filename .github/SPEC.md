@@ -62,6 +62,8 @@ install Chromium without `--with-deps`: the runner image already carries its sha
 apt packages (CJK/Thai/X fonts) feed no assertion while their Ubuntu-mirror download was the slowest step of
 the job, often for minutes. A missing library fails Chromium's launch loudly. The browsers themselves are not
 cached: the Playwright CDN download takes seconds, no slower than an Actions-cache restore of the same bytes.
+A browser job uploads its merged HTML report when it failed or when the report holds a trace, so a test that
+passed only on its retry still leaves the failed first attempt's trace ([[module-browser-e2e]]).
 
 Native artifact smokes run only in shard 1: repeating an identical probe per shard adds no coverage and
 multiplies exposure to runner-environment faults.
