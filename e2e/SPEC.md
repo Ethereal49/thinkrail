@@ -66,6 +66,11 @@ chords read the page's browser-reported platform through one fixture helper and 
 Control elsewhere; hard-coding the runner host's modifier would exercise the wrong product branch under
 browser/platform emulation.
 
+Questionnaire attention probes perform workbench layout shortcuts only while their chat is closed.
+Those shortcuts are user input and deliberately end the card's bounded focus/reveal claim; resizing an
+active card during that claim also races its initial viewport geometry. Reopen after layout setup so
+focus and tall-card assertions measure questionnaire behavior rather than unrelated layout navigation.
+
 Provider-backed browser tests (`e2e:agent`) use a dedicated serial real-Central mode; the separate
 headless workflow suite keeps its local PI-auth mode. Concurrent provider turns would alter rate limits,
 cost, and determinism, so neither is sharded. The agent runner builds the web artifact under the caller's
