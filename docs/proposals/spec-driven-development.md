@@ -2,7 +2,8 @@
 
 **Status: Draft for team review. Not implemented.**
 
-**Audience:** ThinkRail product and engineering contributors.  
+**Audience:** ThinkRail product and engineering contributors.
+
 **Review goal:** agree on the product direction and ownership boundaries, identify missing use cases,
 and choose the first delivery scope. API names, storage formats, and final UI are not being approved here.
 
@@ -54,9 +55,9 @@ small type vocabulary, and the parent hierarchy primarily describes the code str
 assistants' directories, including `.gsd`, are explicitly excluded. The same index drives the Specs
 navigator and the onboarding judgment that a project has specs.
 
-Separately, bundled workflow instructions require ThinkRail's own task-spec and durable-spec
-lifecycle. Consequently, adding readers for more files would not be enough: an agent could discover
-OpenSpec documents and still insist on using ThinkRail's process.
+Separately, bundled workflows require a temporary per-change design record (the **task-spec**) and
+ThinkRail's own durable-spec lifecycle. Adding readers for more files would not be enough: an agent
+could discover OpenSpec documents and still insist on using ThinkRail's process.
 
 The existing model is valuable for projects that want it. The problem is treating it as a prerequisite
 for every project. A well-documented repository can look unconfigured, and its users can be asked to
@@ -247,9 +248,7 @@ placement, not final UI requirements or verified framework compatibility.
 <details>
 <summary>Compare with an illustration of the current model</summary>
 
-The native files can be opened, but the spec index does not recognize them and the bundled workflow
-still prescribes ThinkRail's process. This is an illustration of current contracts, not a captured
-agent run or product screenshot.
+This is an illustration of current contracts, not a captured agent run or product screenshot.
 
 ![Illustrative current workspace: an OpenSpec task file is open while the Specs navigator says No specs and ThinkRail's own workflow remains prescribed.](assets/spec-driven-development/current-model.png)
 
@@ -329,8 +328,7 @@ An integration requiring a second agent runtime is outside this proposal unless 
 decision is explicitly revisited. Document support does not depend on solving native embedding first.
 
 **Not required by the foundation:** a universal workflow language, a new orchestrator, a runtime plugin
-marketplace, a compulsory practice manifest, or universal task synchronization. Durable execution can
-be provided by a compatible capability without becoming mandatory for ordinary recipes.
+marketplace, a compulsory practice manifest, or universal task synchronization.
 
 ## 7. Alternatives and trade-offs
 
@@ -427,4 +425,4 @@ compatibility audit or an endorsement of every claim in the linked documentation
 - **GSD Pi:** the [current home](https://github.com/open-gsd/gsd-pi) linked from the former GSD2
   repository, and the [auto-mode contract at the researched commit](https://github.com/open-gsd/gsd-pi/blob/9eb537517d648af26a8f2c3e6b473c90d8cd4250/docs/user-docs/auto-mode.md).
   The database/projection distinction in this proposal concerns that snapshot, not every historical
-  GSD2 release. Native embedding into ThinkRail has not been verified.
+  GSD2 release.
