@@ -11,6 +11,10 @@ approval. It does not replace the current [product goals](../../goal-and-require
 [architecture](../../architecture.md), or module specifications. Those remain authoritative until an
 approved implementation changes them.
 
+**Quick review:** [summary](#1-summary-and-decisions-requested) →
+[user scenarios](#3-user-scenarios) → [proposed design](#4-proposed-design) →
+[open questions](#9-risks-and-open-review-questions).
+
 ## 1. Summary and decisions requested
 
 > ThinkRail should understand the project's way of working with specs, help execute it, and help users
@@ -235,6 +239,22 @@ A task can explain “Using OpenSpec for this change” and let the user correct
 practice gets a focused question such as “Who approves this RFC?”, not a framework wizard. Limitations
 are specific and actionable, not a permanent “unsupported framework” warning.
 
+The following mockups use a hypothetical OpenSpec project. They illustrate behavior and information
+placement, not final UI requirements or verified framework compatibility.
+
+![Proposed workspace showing native OpenSpec changes beside team documents, the governing process and its sources, and honest native-execution limits.](assets/spec-driven-development/proposed-workspace.png)
+
+<details>
+<summary>Compare with an illustration of the current model</summary>
+
+The native files can be opened, but the spec index does not recognize them and the bundled workflow
+still prescribes ThinkRail's process. This is an illustration of current contracts, not a captured
+agent run or product screenshot.
+
+![Illustrative current workspace: an OpenSpec task file is open while the Specs navigator says No specs and ThinkRail's own workflow remains prescribed.](assets/spec-driven-development/current-model.png)
+
+</details>
+
 ## 5. Saving rules and adapting workflows
 
 ThinkRail should help a practice improve through deliberate, reviewable changes. Support both personal
@@ -275,6 +295,10 @@ gap and ask before switching execution modes.
 
 Do not promote inferred habits into policy silently. Shared edits, workflow saves, and capability
 installation are visible user-approved actions.
+
+These illustrative review states show the proposed scope and consent boundaries, not shipped controls:
+
+![Proposed review surfaces for documenting a shared security-approval rule and saving a personal incident-fix workflow, with explicit scope and execution mode.](assets/spec-driven-development/saving-practices.png)
 
 ## 6. Framework support and compatibility boundaries
 
