@@ -132,6 +132,10 @@ starts servers.
 
 Native wheel probes target the actual transcript viewport again after clicking a floating Latest
 button; a pointer left at a removed overlay is not evidence of a gesture delivered to the scroller.
+The canceled-pointer momentum probe delivers synthetic cancellation and its continuing scroll in one
+browser task. Separate commands let native completion events from earlier programmatic position writes
+end the simulated gesture before its tail arrives. This pins post-cancellation intent and exact-edge
+rearm in both orders, not extended native touch physics; native completion and expiry remain enabled.
 Disclosure-anchor probes place the complete header below the real sticky breadcrumb before asserting
 fixed-position behavior. Intersection with the scroller alone does not prove that a header is unobscured.
 Pierre surfaces paint plain text first and replace their rows when the worker's highlight lands, which
