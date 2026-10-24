@@ -20,6 +20,7 @@ import {
 	createSession,
 	deleteSession,
 	disposeAllSessions,
+	getSessionStats,
 	liveParentContext,
 	removeSession,
 	removeWorkspaceSessions,
@@ -192,6 +193,90 @@ function gatedChildResponse(): { release: () => void } {
 	]);
 	return { release };
 }
+
+test("a child run's usage delta lands in the parent's pi totals and invalidates its stats", async () => {
+	const cwd = tmpDir("trdel-usage-");
+	let parentManager: SessionManager | undefined;
+	setSessionManagerFactory((dir) => {
+		parentManager = SessionManager.inMemory(dir);
+		return parentManager;
+	});
+	const { sessionId } = await createSession({ cwd, workspaceId: "ws-usage" });
+	setSessionManagerFactory((dir) => SessionManager.inMemory(dir));
+	const published: unknown[] = [];
+	setSessionPublisher((payload) => {
+		if (payload.sessionId === sessionId) published.push(payload.event);
+	});
+	try {
+		expect(getSessionStats(sessionId).tokens.total).toBe(0);
+		faux.setResponses([fauxAssistantMessage("CHILD_DONE")]);
+		const child = await delegationServiceFor("ws-usage").createChild({
+			parent: sessionId,
+			visibility: "hidden",
+			info: { createdBy: "tool:Agent", roleName: "scout", roleSource: "builtin" },
+			session: { systemPrompt: "You are a test scout." },
+		});
+		const { usage } = (await child.runQueued("Report.")).details;
+		expect(usage.input + usage.output).toBeGreaterThan(0);
+
+		const { tokens } = getSessionStats(sessionId);
+		expect(tokens).toMatchObject({
+			input: usage.input,
+			output: usage.output,
+			cacheRead: usage.cacheRead,
+			cacheWrite: usage.cacheWrite,
+		});
+		const recorded = parentManager?.getEntries().filter((entry) => entry.type === "usage");
+		expect(recorded).toMatchObject([
+			{ kind: "subagent", provider: "faux", model: "faux", note: child.sessionId },
+		]);
+		expect(published).toContainEqual({ type: "entry_appended", entryType: "usage" });
+	} finally {
+		setSessionPublisher(() => {});
+		await removeSession(sessionId);
+	}
+});
+
+async function parentWithGatedChild(workspaceId: string) {
+	let parentManager: SessionManager | undefined;
+	setSessionManagerFactory((dir) => {
+		parentManager = SessionManager.inMemory(dir);
+		return parentManager;
+	});
+	const cwd = tmpDir(`trdel-${workspaceId}-`);
+	const { sessionId } = await createSession({ cwd, workspaceId });
+	setSessionManagerFactory((dir) => SessionManager.inMemory(dir));
+	const { release } = gatedChildResponse();
+	const child = await delegationServiceFor(workspaceId).createChild({
+		parent: sessionId,
+		visibility: "hidden",
+		info: { createdBy: "tool:Agent", roleName: "scout", roleSource: "builtin" },
+		session: { systemPrompt: "You are a test scout." },
+	});
+	const run = child.runQueued("Long background job.");
+	await waitFor(() => child.snapshot?.status === "running");
+	const usageEntries = () =>
+		parentManager?.getEntries().filter((entry) => entry.type === "usage") ?? [];
+	return { cwd, sessionId, child, run, release, usageEntries };
+}
+
+test("closing a chat still records the usage of a child its cascade stops", async () => {
+	const { sessionId, child, run, release, usageEntries } = await parentWithGatedChild("ws-close");
+	const closed = removeSession(sessionId);
+	await waitFor(() => liveParentContext(sessionId) === undefined);
+	release();
+	await Promise.all([closed, run]);
+	expect(usageEntries()).toMatchObject([{ kind: "subagent", note: child.sessionId }]);
+});
+
+test("deleting a chat never appends usage to its trashed transcript", async () => {
+	const { cwd, sessionId, run, release, usageEntries } = await parentWithGatedChild("ws-delusage");
+	const deleted = deleteSession(sessionId, "ws-delusage", cwd);
+	await waitFor(() => liveParentContext(sessionId) === undefined);
+	release();
+	await Promise.all([deleted, run]);
+	expect(usageEntries()).toEqual([]);
+});
 
 test("owned children remain inspectable before and during their first provider response", async () => {
 	const cwd = tmpDir("trdel-prefile-");

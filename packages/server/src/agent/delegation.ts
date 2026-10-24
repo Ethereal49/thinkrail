@@ -11,6 +11,7 @@ import { CodedError } from "@thinkrail/shared/codedError";
 import {
 	type ChildHandle,
 	createDelegationService,
+	type DelegationRunDetails,
 	type DelegationService,
 	deriveChildSessionFile,
 	type RunStatus,
@@ -21,6 +22,7 @@ import {
 	buildSessionSettings,
 	canUseSessionResources,
 	liveParentContext,
+	recordSessionUsage,
 	scheduleSessionStatePublish,
 } from "./agentSessionManager";
 import { publishSessionResourcesChanged } from "./chatResources";
@@ -48,6 +50,32 @@ export function refreshSubagentConcurrency(workspaceId?: string): void {
 	}
 }
 
+function recordRunUsage(
+	parentSessionId: string,
+	childSessionId: string,
+	details: DelegationRunDetails,
+): void {
+	const { input, output, cacheRead, cacheWrite, cost } = details.usage;
+	const totalTokens = input + output + cacheRead + cacheWrite;
+	if (totalTokens === 0 && cost === 0) return;
+	const ref = details.model ?? "unknown";
+	const slash = ref.indexOf("/");
+	recordSessionUsage(parentSessionId, {
+		kind: "subagent",
+		provider: slash > 0 ? ref.slice(0, slash) : "unknown",
+		model: ref.slice(slash + 1),
+		usage: {
+			input,
+			output,
+			cacheRead,
+			cacheWrite,
+			totalTokens,
+			cost: { input: 0, output: 0, cacheRead: 0, cacheWrite: 0, total: cost },
+		},
+		note: childSessionId,
+	});
+}
+
 export function delegationServiceFor(workspaceId: string): DelegationService {
 	let service = services.get(workspaceId);
 	if (!service) {
@@ -64,6 +92,8 @@ export function delegationServiceFor(workspaceId: string): DelegationService {
 			buildChildSettings: buildSessionSettings,
 		});
 		service.onLifecycle((event) => {
+			if (event.type === "run-terminal")
+				recordRunUsage(event.parentSessionId, event.sessionId, event.outcome.details);
 			const parentSessionId =
 				event.type === "child-created" ? event.record.parentSessionId : event.parentSessionId;
 			if (canUseSessionResources(parentSessionId, workspaceId)) {

@@ -2,7 +2,7 @@ import { createReadStream, existsSync, rmSync } from "node:fs";
 import { readdir } from "node:fs/promises";
 import { join, resolve } from "node:path";
 import { createInterface } from "node:readline";
-import { clampThinkingLevel, getSupportedThinkingLevels } from "@earendil-works/pi-ai";
+import { clampThinkingLevel, getSupportedThinkingLevels, type Usage } from "@earendil-works/pi-ai";
 import {
 	type AgentSession,
 	type CreateAgentSessionOptions,
@@ -180,6 +180,7 @@ const workspaceLifecycleGenerations = new Map<string, number>();
 const closingWorkspaces = new Map<string, number>();
 const pendingSessionPreparations = new Map<string, Set<Promise<unknown>>>();
 const sessionTeardowns = new Map<string, Promise<void>>();
+const tearingDownEntries = new Map<string, Entry>();
 
 interface WorkspaceLifecycleToken {
 	global: number;
@@ -2376,7 +2377,7 @@ export function setSessionThinkingLevel(sessionId: string, level: ThinkingLevel)
 export function getSessionStats(sessionId: string): SessionStats {
 	const session = mustGet(sessionId);
 	const stats = session.getSessionStats();
-	const contextUsage = stats.contextUsage ?? session.getContextUsage();
+	const { contextUsage } = stats;
 	return {
 		sessionId: stats.sessionId,
 		totalMessages: stats.totalMessages,
@@ -2390,6 +2391,18 @@ export function getSessionStats(sessionId: string): SessionStats {
 		cost: stats.cost,
 		...(contextUsage ? { contextUsage } : {}),
 	};
+}
+
+export function recordSessionUsage(
+	sessionId: string,
+	record: { kind: string; provider: string; model: string; usage: Usage; note?: string },
+): void {
+	if (hasDeletionTombstone(sessionId)) return;
+	const entry = sessions.get(sessionId) ?? tearingDownEntries.get(sessionId);
+	if (!entry) return;
+	const { kind, provider, model, usage, note } = record;
+	entry.session.sessionManager.appendUsage(kind, provider, model, usage, note);
+	publish({ sessionId, event: { type: "entry_appended", entryType: "usage" } });
 }
 
 export interface McpSessionView {
@@ -2649,6 +2662,10 @@ function disposeSession(sessionId: string): Promise<void> {
 	if (!entry) return Promise.resolve();
 	entry.disposed = true;
 	const cascade = trackSessionTeardown(sessionId, closeSessionResources(entry));
+	tearingDownEntries.set(sessionId, entry);
+	void cascade.finally(() => {
+		if (tearingDownEntries.get(sessionId) === entry) tearingDownEntries.delete(sessionId);
+	});
 	cancelExtUiForSession(sessionId);
 	forgetMcpStatus(sessionId);
 	entry.askUserQuestionWaiters.abandon();
