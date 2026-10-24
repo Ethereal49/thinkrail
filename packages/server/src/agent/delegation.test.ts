@@ -14,7 +14,7 @@ import {
 	type DelegationRunDetails as WireRunDetails,
 } from "@thinkrail/contracts";
 import { errorCodeOf } from "@thinkrail/shared/codedError";
-import type { DelegationRunDetails as CoreRunDetails } from "pi-delegation";
+import { type DelegationRunDetails as CoreRunDetails, delegationSessionDir } from "pi-delegation";
 import { SUBAGENT_COMPLETION_MESSAGE } from "pi-subagents";
 import {
 	createSession,
@@ -32,6 +32,7 @@ import {
 	delegationRootDir,
 	delegationServiceFor,
 	readChildTranscript,
+	reconcileSessionSubagentUsage,
 	refreshSubagentConcurrency,
 	setSubagentConcurrencyResolver,
 } from "./delegation";
@@ -231,6 +232,9 @@ test("a child run's usage delta lands in the parent's pi totals and invalidates 
 			{ kind: "subagent", provider: "faux", model: "faux", note: child.sessionId },
 		]);
 		expect(published).toContainEqual({ type: "entry_appended", entryType: "usage" });
+
+		await reconcileSessionSubagentUsage("ws-usage", sessionId, () => parentManager?.getEntries());
+		expect(parentManager?.getEntries().filter((entry) => entry.type === "usage")).toHaveLength(1);
 	} finally {
 		setSessionPublisher(() => {});
 		await removeSession(sessionId);
@@ -259,6 +263,52 @@ async function parentWithGatedChild(workspaceId: string) {
 		parentManager?.getEntries().filter((entry) => entry.type === "usage") ?? [];
 	return { cwd, sessionId, child, run, release, usageEntries };
 }
+
+test("attaching a chat recovers the spend of children a crashed host never recorded", async () => {
+	const cwd = tmpDir("trdel-crash-");
+	let parentManager: SessionManager | undefined;
+	let orphanId = "";
+	setSessionManagerFactory((dir) => {
+		parentManager = SessionManager.inMemory(dir);
+		const orphan = SessionManager.create(
+			cwd,
+			delegationSessionDir(delegationRootDir(), "ws-crash", parentManager.getSessionId()),
+		);
+		orphan.appendMessage({ role: "user", content: "Long job.", timestamp: Date.now() });
+		orphan.appendMessage({
+			...fauxAssistantMessage("partial"),
+			provider: "faux",
+			model: "faux",
+			usage: {
+				input: 120,
+				output: 30,
+				cacheRead: 4_000,
+				cacheWrite: 500,
+				totalTokens: 4_650,
+				cost: { input: 0, output: 0, cacheRead: 0, cacheWrite: 0, total: 0.25 },
+			},
+		});
+		orphanId = orphan.getSessionId();
+		return parentManager;
+	});
+	const { sessionId } = await createSession({ cwd, workspaceId: "ws-crash" });
+	setSessionManagerFactory((dir) => SessionManager.inMemory(dir));
+	try {
+		await waitFor(() => getSessionStats(sessionId).tokens.total > 0);
+		expect(getSessionStats(sessionId)).toMatchObject({
+			tokens: { input: 120, output: 30, cacheRead: 4_000, cacheWrite: 500 },
+			cost: 0.25,
+		});
+		const usageEntries = () => parentManager?.getEntries().filter((e) => e.type === "usage");
+		expect(usageEntries()).toMatchObject([
+			{ kind: "subagent", provider: "faux", model: "faux", note: orphanId },
+		]);
+		await reconcileSessionSubagentUsage("ws-crash", sessionId, () => parentManager?.getEntries());
+		expect(usageEntries()).toHaveLength(1);
+	} finally {
+		await removeSession(sessionId);
+	}
+});
 
 test("closing a chat still records the usage of a child its cascade stops", async () => {
 	const { sessionId, child, run, release, usageEntries } = await parentWithGatedChild("ws-close");

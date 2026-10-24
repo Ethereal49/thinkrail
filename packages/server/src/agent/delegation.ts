@@ -1,6 +1,10 @@
 import { rmSync } from "node:fs";
 import { join } from "node:path";
-import { buildSessionContext, SessionManager } from "@earendil-works/pi-coding-agent";
+import {
+	buildSessionContext,
+	type SessionEntry,
+	SessionManager,
+} from "@earendil-works/pi-coding-agent";
 import {
 	type DelegationRunStatus,
 	isTranscriptMessageRole,
@@ -11,8 +15,8 @@ import { CodedError } from "@thinkrail/shared/codedError";
 import {
 	type ChildHandle,
 	createDelegationService,
-	type DelegationRunDetails,
 	type DelegationService,
+	delegationSessionDir,
 	deriveChildSessionFile,
 	type RunStatus,
 } from "pi-delegation";
@@ -29,6 +33,12 @@ import { publishSessionResourcesChanged } from "./chatResources";
 import { childBaseExtensionFactories, childExtensionFactories } from "./extensions";
 import { getPiRuntime } from "./piRuntime";
 import { isHostResourceId, isPiSessionId } from "./resourceIdentity";
+import {
+	reconcileSubagentUsage,
+	runUsage,
+	SUBAGENT_USAGE_KIND,
+	type SubagentUsage,
+} from "./subagentUsage";
 
 export function delegationRootDir(): string {
 	return join(dataDir(), "delegation");
@@ -50,29 +60,27 @@ export function refreshSubagentConcurrency(workspaceId?: string): void {
 	}
 }
 
-function recordRunUsage(
-	parentSessionId: string,
-	childSessionId: string,
-	details: DelegationRunDetails,
-): void {
-	const { input, output, cacheRead, cacheWrite, cost } = details.usage;
-	const totalTokens = input + output + cacheRead + cacheWrite;
-	if (totalTokens === 0 && cost === 0) return;
-	const ref = details.model ?? "unknown";
-	const slash = ref.indexOf("/");
+function recordSubagentUsage(parentSessionId: string, usage: SubagentUsage | undefined): void {
+	if (!usage) return;
 	recordSessionUsage(parentSessionId, {
-		kind: "subagent",
-		provider: slash > 0 ? ref.slice(0, slash) : "unknown",
-		model: ref.slice(slash + 1),
-		usage: {
-			input,
-			output,
-			cacheRead,
-			cacheWrite,
-			totalTokens,
-			cost: { input: 0, output: 0, cacheRead: 0, cacheWrite: 0, total: cost },
-		},
-		note: childSessionId,
+		kind: SUBAGENT_USAGE_KIND,
+		provider: usage.provider,
+		model: usage.model,
+		usage: usage.usage,
+		note: usage.childSessionId,
+	});
+}
+
+export function reconcileSessionSubagentUsage(
+	workspaceId: string,
+	parentSessionId: string,
+	entries: () => readonly SessionEntry[] | undefined,
+): Promise<void> {
+	return reconcileSubagentUsage({
+		dir: delegationSessionDir(delegationRootDir(), workspaceId, parentSessionId),
+		entries,
+		isLive: (childSessionId) => services.get(workspaceId)?.findChild(childSessionId) !== undefined,
+		record: (usage) => recordSubagentUsage(parentSessionId, usage),
 	});
 }
 
@@ -93,7 +101,10 @@ export function delegationServiceFor(workspaceId: string): DelegationService {
 		});
 		service.onLifecycle((event) => {
 			if (event.type === "run-terminal")
-				recordRunUsage(event.parentSessionId, event.sessionId, event.outcome.details);
+				recordSubagentUsage(
+					event.parentSessionId,
+					runUsage(event.sessionId, event.outcome.details),
+				);
 			const parentSessionId =
 				event.type === "child-created" ? event.record.parentSessionId : event.parentSessionId;
 			if (canUseSessionResources(parentSessionId, workspaceId)) {

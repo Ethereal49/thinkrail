@@ -571,8 +571,15 @@ answer-injection path, and the **restart repair** that keeps re-opened transcrip
     a chat keeps its entry writable until its teardown cascade settles, so runs that cascade stops are
     still recorded; attach is refused during teardown, so the transcript keeps one writer. A deletion
     tombstone suppresses the write, because pi's append would recreate the trashed file. Graceful host
-    shutdown records within its budget; a crash or kill loses in-flight runs' spend (the child transcript
-    keeps it). Children cannot spawn children (`RECURSION_GUARD_TOOLS`), so deltas never nest.
+    shutdown records within its budget. Children cannot spawn children (`RECURSION_GUARD_TOOLS`), so deltas
+    never nest. **`subagentUsage`** makes the transcript, not the event, authoritative: every attach
+    asynchronously totals each non-live fresh child file under the parent's delegation directory and
+    appends the shortfall against the parent's `subagent` entries for that child. This recovers runs a
+    crash or kill never finished, back-fills chats from before parent recording, and picks up child spend
+    outside runs. A child file not newer than its latest record is skipped unread; the shortfall is
+    recomputed from the live entries immediately before appending, so overlapping reconciliations cannot
+    double-count; only a positive token shortfall is appended, never a negative correction. Forked children
+    (header `parentSession`) are skipped because their copied history carries the parent's own spend.
     A host-injected `setSubagentConcurrencyResolver` supplies each service's per-chat
     limit at creation, and `refreshSubagentConcurrency(workspaceId?)` re-resolves and live-resizes the
     cached services (core `setMaxConcurrentPerParent`) after a global or workspace limit change; `subagentsFor(workspaceId, isEnabled, canDeliverCompletion)` creates one retained portable

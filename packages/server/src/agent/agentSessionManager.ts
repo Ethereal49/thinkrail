@@ -89,6 +89,7 @@ import { publishSessionResourcesChanged } from "./chatResources";
 import {
 	disposeSessionChildren,
 	hasLiveSessionChildren,
+	reconcileSessionSubagentUsage,
 	removeWorkspaceDelegation,
 	stopSessionChildren,
 	subagentsFor,
@@ -1237,6 +1238,11 @@ async function registerSession(
 	restartMcpStatus(session.sessionId);
 	commands.flushCompletions();
 	subagents.flushCompletions();
+	void reconcileSessionSubagentUsage(workspaceId, session.sessionId, () =>
+		usageWritableEntry(session.sessionId)?.session.sessionManager.getEntries(),
+	).catch((error: unknown) =>
+		log.warn(`subagent usage was not reconciled for ${session.sessionId}`, error as Error),
+	);
 	log.debug(`session ${session.sessionId} attached (workspace ${workspaceId})`);
 	if (announceCreation) {
 		publishCreated(summaryOf(session.sessionId, prepared.entry));
@@ -2393,12 +2399,16 @@ export function getSessionStats(sessionId: string): SessionStats {
 	};
 }
 
+function usageWritableEntry(sessionId: string): Entry | undefined {
+	if (hasDeletionTombstone(sessionId)) return undefined;
+	return sessions.get(sessionId) ?? tearingDownEntries.get(sessionId);
+}
+
 export function recordSessionUsage(
 	sessionId: string,
 	record: { kind: string; provider: string; model: string; usage: Usage; note?: string },
 ): void {
-	if (hasDeletionTombstone(sessionId)) return;
-	const entry = sessions.get(sessionId) ?? tearingDownEntries.get(sessionId);
+	const entry = usageWritableEntry(sessionId);
 	if (!entry) return;
 	const { kind, provider, model, usage, note } = record;
 	entry.session.sessionManager.appendUsage(kind, provider, model, usage, note);
