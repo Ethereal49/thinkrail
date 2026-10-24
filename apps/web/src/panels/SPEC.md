@@ -410,10 +410,11 @@ open or recent projects, and `useHasProvider` reports none. The decision is **la
 connecting a provider or opening a project mid-wizard does not tear it down. It opens on an **intro**
 (the brand title, the landing page's tagline and its three "why" beats — worktrees, specs, pi as the
 engine — as small cards, and **Get started**; the copy follows thinkrail.ai so first run and landing say the same thing) — a first-time user meets the
-product before a wall of providers. Then the steps, shown as a 4-step progress strip under each step's
-title (the intro is not a step): **Connect** (`ConnectProviderOptions`; advances when a provider becomes configured) →
-**Verify** (no tokens spent: the connected provider, its `model.list` count and the `model.default` model
-new chats start with; zero models warns and offers Back) → **Project** (Start a new project / Open a
+product before a wall of providers. Then **at most three steps**, shown as a progress strip under each
+step's title (the intro is not a step; a longer strip read as a chore before the product does anything):
+**Connect** (`ConnectProviderOptions`; when a provider becomes configured the same step turns into its
+confirmation — no tokens spent: the connected provider, its `model.list` count and the `model.default`
+model new chats start with; zero models warns and offers Back to the choices) → **Project** (Start a new project / Open a
 project through `useOpenProject`) → **Build** (the opened project with "Set up project" and "Start
 building", each handing the `NewWorkspaceDialog` request back to Welcome). **Skip setup** is on every step.
 The gate lives in the store (`onboardingWizard`: pending → shown | hidden) so shell can hold first-run

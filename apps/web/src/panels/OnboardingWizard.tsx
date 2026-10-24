@@ -30,6 +30,7 @@ import { useProviderAuth } from "./useProviderAuth";
 import { Card } from "./WelcomeCard";
 
 type Step = "intro" | "connect" | "verify" | "project" | "build";
+type HeaderStep = "connect" | "project" | "build";
 
 const INTRO_BEATS = [
 	{
@@ -53,9 +54,8 @@ const INTRO_BEATS = [
 	detail: MessageKey;
 }[];
 
-const STEPS: { id: Exclude<Step, "intro">; label: MessageKey }[] = [
+const STEPS: { id: HeaderStep; label: MessageKey }[] = [
 	{ id: "connect", label: "panels.onboarding.step.connect" },
-	{ id: "verify", label: "panels.onboarding.step.verify" },
 	{ id: "project", label: "panels.onboarding.step.project" },
 	{ id: "build", label: "panels.onboarding.step.build" },
 ];
@@ -225,7 +225,7 @@ export function OnboardingWizard({
 	);
 }
 
-function StepHeader({ current }: { current: Exclude<Step, "intro"> }) {
+function StepHeader({ current }: { current: HeaderStep }) {
 	const t = useT();
 	const currentIndex = STEPS.findIndex((s) => s.id === current);
 	return (
@@ -276,7 +276,7 @@ function StepTitle({
 	title,
 	subtitle,
 }: {
-	step: Exclude<Step, "intro">;
+	step: HeaderStep;
 	title: string;
 	subtitle: string;
 }) {
@@ -330,7 +330,7 @@ function VerifyStep({
 	return (
 		<>
 			<StepTitle
-				step="verify"
+				step="connect"
 				title={t("auth.login.connectedTitle", { provider: name })}
 				subtitle={t("panels.onboarding.verify.subtitle")}
 			/>

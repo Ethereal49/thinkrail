@@ -137,7 +137,7 @@ test("a cold start shows the onboarding wizard once; Skip setup persists", async
 	await expect(wizard.getByTestId("connect-provider-options")).toHaveCount(0);
 	await wizard.getByTestId("onboarding-start").click();
 	await expect(wizard).toHaveAttribute("data-step", "connect");
-	await expect(wizard.getByTestId("onboarding-steps").locator("li")).toHaveCount(4);
+	await expect(wizard.getByTestId("onboarding-steps").locator("li")).toHaveCount(3);
 	await expect(wizard.getByTestId("connect-provider-options")).toBeVisible();
 	await expect(wizard.getByTestId("onboarding-steps")).toBeVisible();
 
@@ -268,6 +268,9 @@ test("the onboarding wizard walks connect → verify → project → build", {
 		await expect(wizard).toHaveAttribute("data-step", "verify");
 		await expect(page.getByTestId("login-dialog")).toHaveCount(0);
 		await expect(wizard.getByTestId("onboarding-verify")).toBeVisible();
+		await expect(
+			wizard.getByTestId("onboarding-steps").locator('[data-step="connect"]'),
+		).toHaveAttribute("data-state", "current");
 		await wizard.getByTestId("onboarding-continue").click();
 
 		await expect(wizard).toHaveAttribute("data-step", "project");

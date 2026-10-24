@@ -938,7 +938,6 @@
 	"panels.onboarding.step.build": "Build",
 	"panels.onboarding.step.connect": "Connect",
 	"panels.onboarding.step.project": "Project",
-	"panels.onboarding.step.verify": "Verify",
 	"panels.onboarding.verify.defaultModel": "New chats start with <0>{{model}}</0>.",
 	"panels.onboarding.verify.loadFailed": "Couldn't read the model list — the connection itself succeeded.",
 	"panels.onboarding.verify.noModels": "No models are available from {{provider}} yet. Go back and pick another provider, or continue and connect one later in Settings.",
