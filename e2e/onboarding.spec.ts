@@ -38,12 +38,10 @@ async function anyProviderConfigured(baseURL: string | undefined): Promise<boole
 }
 
 async function connectFirstApiKeyProvider(page: Page, scope: Locator): Promise<string> {
-	const keyButton = scope
-		.getByTestId("connect-option-recommended")
-		.locator('[data-testid="connect-method"][data-method="api_key"]');
-	const providerId = await keyButton.getAttribute("data-provider");
+	const row = scope.locator('[data-testid="provider-signin-row"][data-provider="anthropic"]');
+	const providerId = await row.getAttribute("data-provider");
 	expect(providerId).toBeTruthy();
-	await keyButton.click();
+	await row.getByTestId("provider-apikey").click();
 
 	await expect(page.getByTestId("login-dialog")).toBeVisible();
 	for (let i = 0; i < 8; i++) {
@@ -143,12 +141,14 @@ test("a cold start shows the onboarding wizard once; Skip setup persists", async
 	await expect(wizard.getByTestId("connect-provider-options")).toBeVisible();
 	await expect(wizard.getByTestId("onboarding-steps")).toBeVisible();
 
-	await expect(wizard.getByTestId("connect-option-recommended")).toContainText("Anthropic");
+	await expect(wizard.getByTestId("connect-option-recommended")).toHaveCount(0);
 	const list = wizard.getByTestId("connect-provider-list");
 	await expect(list.getByTestId("jetbrains-ai-card")).toBeVisible();
 	const rows = list.getByTestId("provider-signin-row");
 	expect(await rows.count()).toBeGreaterThan(6);
-	await expect(list.locator('[data-provider="anthropic"]')).toHaveCount(0);
+	await expect(
+		list.locator('[data-testid="provider-signin-row"][data-provider="anthropic"]'),
+	).toHaveCount(1);
 	const oauthFirst = await rows.evaluateAll((els) =>
 		els.map((e) => e.querySelector('[data-testid="provider-signin"]') !== null),
 	);
@@ -212,7 +212,9 @@ test("Get started detects a signed-in Claude Code and recommends its sign-in", a
 		await expect(detected).toHaveCount(1);
 		await expect(detected).toHaveAttribute("data-source", "claude-code");
 		await expect(detected).toHaveAttribute("data-provider", "anthropic");
-		await expect(wizard.getByTestId("connect-option-recommended")).toHaveCount(0);
+		await expect(wizard.getByTestId("connect-option-recommended")).toContainText(
+			"Sign in with Claude",
+		);
 		await expect(
 			wizard.getByTestId("connect-provider-list").locator('[data-provider="anthropic"]'),
 		).toHaveCount(0);
@@ -321,7 +323,8 @@ test("a sign-in abandoned by a reload does not park the next attempt on Workingâ
 		await page.getByTestId("welcome-connect-provider").click();
 		await page
 			.getByTestId("connect-provider-dialog")
-			.locator('[data-testid="connect-method"][data-method="oauth"]')
+			.locator('[data-testid="provider-signin-row"][data-provider="anthropic"]')
+			.getByTestId("provider-signin")
 			.click();
 		await expect(page.getByTestId("login-option").first()).toBeVisible();
 	};

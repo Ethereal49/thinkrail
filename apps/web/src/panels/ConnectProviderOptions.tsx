@@ -1,7 +1,5 @@
 import {
 	RiArrowRightLine as ArrowRight,
-	RiKeyLine as KeyRound,
-	RiLoader4Line as Loader2,
 	RiLoginBoxLine as LogIn,
 	RiSearchLine as Search,
 } from "@remixicon/react";
@@ -10,7 +8,6 @@ import type { MessageKey } from "@thinkrail/locales";
 import { t as translate, useT } from "@thinkrail/locales/react";
 import { Button } from "@thinkrail/ui/button";
 import { SkeletonRows } from "@thinkrail/ui/skeleton";
-import { cn } from "@thinkrail/ui/utils";
 import { useEffect, useRef, useState } from "react";
 import { toast } from "@/store";
 import { getTransport } from "@/transport";
@@ -18,21 +15,9 @@ import { JetBrainsAiCard } from "./JetBrainsAiCard";
 import { ProviderRow } from "./ProviderRow";
 import type { ProviderAuth } from "./useProviderAuth";
 
-const RECOMMENDED_PROVIDER = "anthropic";
 const JETBRAINS_AI_SEARCH = "jetbrains ai central";
 
 type Method = "oauth" | "api_key";
-
-const RECOMMENDED_COPY = {
-	oauth: {
-		title: "panels.connectProvider.anthropicOauthTitle",
-		detail: "panels.connectProvider.anthropicOauthDetail",
-	},
-	api_key: {
-		title: "panels.connectProvider.anthropicApiKeyTitle",
-		detail: "panels.connectProvider.anthropicApiKeyDetail",
-	},
-} as const satisfies Record<Method, { title: MessageKey; detail: MessageKey }>;
 
 const DETECTED_COPY = {
 	"claude-code": {
@@ -52,13 +37,6 @@ const DETECTED_COPY = {
 interface DetectedChoice {
 	account: DetectedAccount;
 	provider: ProviderStatus;
-}
-
-function methodsOf(provider: ProviderStatus): Method[] {
-	return [
-		...(provider.canOAuth ? (["oauth"] as const) : []),
-		...(provider.canApiKey ? (["api_key"] as const) : []),
-	];
 }
 
 export function connectedProviderName(provider: ProviderStatus): string {
@@ -119,21 +97,16 @@ export function ConnectProviderOptions({
 			</div>
 		);
 	}
-	if (!report) return <SkeletonRows rows={3} />;
+	if (!report || detected === null) return <SkeletonRows rows={3} />;
 
 	const unconfigured = report.providers.filter(
 		(p) => !p.configured && p.kind !== "central" && (p.canOAuth || p.canApiKey),
 	);
-	const found = (detected ?? []).flatMap((account): DetectedChoice[] => {
+	const found = detected.flatMap((account): DetectedChoice[] => {
 		const provider = unconfigured.find((p) => p.id === account.providerId && p.canOAuth);
 		return provider ? [{ account, provider }] : [];
 	});
 	const featured = new Set(found.map((choice) => choice.provider));
-	const recommended =
-		detected !== null && found.length === 0
-			? unconfigured.find((p) => p.id === RECOMMENDED_PROVIDER)
-			: undefined;
-	if (recommended) featured.add(recommended);
 	const query = search.trim().toLowerCase();
 	const others = unconfigured
 		.filter((p) =>
@@ -145,21 +118,13 @@ export function ConnectProviderOptions({
 
 	return (
 		<div data-testid="connect-provider-options" className="flex flex-col gap-12 text-left">
-			{detected === null ? (
+			{found.length > 0 ? (
 				<section
-					data-testid="connect-detecting"
-					className="flex items-center gap-8 rounded-sm border border-primary-muted bg-clip-padding bg-primary-subtle p-16 text-text-muted tr-text-ui"
-				>
-					<Loader2 className="size-16 shrink-0 animate-spin text-primary" />
-					{t("panels.connectProvider.detecting")}
-				</section>
-			) : found.length > 0 ? (
-				<section
-					data-testid="connect-option-detected"
+					data-testid="connect-option-recommended"
 					className="flex flex-col gap-8 rounded-sm border border-primary-muted bg-clip-padding bg-primary-subtle p-16"
 				>
 					<span className="self-start rounded-full border border-primary-muted bg-clip-padding bg-primary-subtle px-8 py-2 tr-text-label-pill text-primary">
-						{t("panels.connectProvider.foundOnComputer")}
+						{t("panels.connectProvider.recommended")}
 					</span>
 					<div className="flex flex-col gap-8">
 						{found.map(({ account, provider }) => (
@@ -176,21 +141,6 @@ export function ConnectProviderOptions({
 						{t("panels.connectProvider.detectedNote")}
 					</span>
 				</section>
-			) : recommended ? (
-				<section
-					data-testid="connect-option-recommended"
-					className="flex flex-col gap-8 rounded-sm border border-primary-muted bg-clip-padding bg-primary-subtle p-16"
-				>
-					<span className="self-start rounded-full border border-primary-muted bg-clip-padding bg-primary-subtle px-8 py-2 tr-text-label-pill text-primary">
-						{t("panels.connectProvider.recommended")}
-					</span>
-					<span className="tr-title-card text-text-default">{recommended.name}</span>
-					<MethodChoices
-						provider={recommended}
-						busy={rowBusy(recommended.id)}
-						onPick={(method) => connect(recommended, method)}
-					/>
-				</section>
 			) : null}
 
 			<section
@@ -204,7 +154,7 @@ export function ConnectProviderOptions({
 						value={search}
 						onChange={(e) => setSearch(e.target.value)}
 						placeholder={
-							recommended
+							found.length > 0
 								? t("panels.connectProvider.searchOthers")
 								: t("panels.connectProvider.search")
 						}
@@ -288,51 +238,5 @@ function DetectedChoiceButton({
 			</span>
 			<ArrowRight className="mt-2 size-16 shrink-0 text-text-muted" />
 		</button>
-	);
-}
-
-function MethodChoices({
-	provider,
-	busy,
-	onPick,
-}: {
-	provider: ProviderStatus;
-	busy: boolean;
-	onPick: (method: Method) => void;
-}) {
-	const t = useT();
-	return (
-		<div className="grid gap-8 sm:grid-cols-2">
-			{methodsOf(provider).map((method) => {
-				const Icon = method === "oauth" ? LogIn : KeyRound;
-				return (
-					<button
-						key={method}
-						type="button"
-						data-testid="connect-method"
-						data-method={method}
-						data-provider={provider.id}
-						disabled={busy}
-						onClick={() => onPick(method)}
-						className={cn(
-							"flex min-w-0 items-start gap-8 rounded-sm border bg-clip-padding p-12 text-left transition-colors hover:bg-control-bg-hovered focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary disabled:opacity-50",
-							method === "oauth"
-								? "border-primary-muted bg-container-workspace-bg"
-								: "border-border-default bg-container-workspace-bg",
-						)}
-					>
-						<Icon className="mt-2 size-16 shrink-0 text-primary" />
-						<span className="min-w-0">
-							<span className="block tr-title-card text-text-default">
-								{t(RECOMMENDED_COPY[method].title)}
-							</span>
-							<span className="mt-2 block text-text-muted tr-text-metadata">
-								{t(RECOMMENDED_COPY[method].detail)}
-							</span>
-						</span>
-					</button>
-				);
-			})}
-		</div>
 	);
 }
