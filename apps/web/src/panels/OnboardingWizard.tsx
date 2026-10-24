@@ -11,7 +11,7 @@ import {
 	RiRocketLine as Rocket,
 	RiSparkling2Line as Sparkles,
 } from "@remixicon/react";
-import type { Project, ProviderStatus, WireModel } from "@thinkrail/contracts";
+import type { DetectedAccount, Project, ProviderStatus, WireModel } from "@thinkrail/contracts";
 import type { MessageKey } from "@thinkrail/locales";
 import { T, useT } from "@thinkrail/locales/react";
 import { Button } from "@thinkrail/ui/button";
@@ -23,6 +23,7 @@ import { useAppStore } from "@/store";
 import { getTransport } from "@/transport";
 import { AddProjectMenu } from "./AddProjectMenu";
 import { ConnectProviderOptions, connectedProviderName } from "./ConnectProviderOptions";
+import { detectAccounts } from "./detectAccounts";
 import { setupDialogRequest, type WorkspaceDialogRequest } from "./setupPrompt";
 import { useOpenProject } from "./useOpenProject";
 import { useProviderAuth } from "./useProviderAuth";
@@ -67,6 +68,7 @@ export function OnboardingWizard({
 	const t = useT();
 	const [step, setStep] = useState<Step>("intro");
 	const [provider, setProvider] = useState<ProviderStatus | null>(null);
+	const [detected, setDetected] = useState<DetectedAccount[] | null>(null);
 	const [project, setProject] = useState<Project | null>(null);
 	const settingsOpen = useAppStore((s) => s.settingsOpen);
 	const recentProjects = useAppStore((s) => s.recentProjects);
@@ -113,7 +115,13 @@ export function OnboardingWizard({
 							</li>
 						))}
 					</ul>
-					<Button data-testid="onboarding-start" onClick={() => setStep("connect")}>
+					<Button
+						data-testid="onboarding-start"
+						onClick={() => {
+							setStep("connect");
+							void detectAccounts().then(setDetected);
+						}}
+					>
 						{t("panels.onboarding.intro.start")}
 						<ArrowRight className="size-16" />
 					</Button>
@@ -128,6 +136,7 @@ export function OnboardingWizard({
 					<div className="w-full">
 						<ConnectProviderOptions
 							auth={auth}
+							detected={detected}
 							onShowAll={() => useAppStore.getState().openSettings("providers")}
 							onConnected={(connected) => {
 								useAppStore.getState().clearLogin();

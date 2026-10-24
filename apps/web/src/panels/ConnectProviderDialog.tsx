@@ -1,4 +1,4 @@
-import type { ProviderStatus } from "@thinkrail/contracts";
+import type { DetectedAccount, ProviderStatus } from "@thinkrail/contracts";
 import { useT } from "@thinkrail/locales/react";
 import {
 	Dialog,
@@ -7,9 +7,11 @@ import {
 	DialogHeader,
 	DialogTitle,
 } from "@thinkrail/ui/dialog";
+import { useEffect, useState } from "react";
 import { useAppStore } from "@/store";
 import { getTransport } from "@/transport";
 import { announceProviderConnected, ConnectProviderOptions } from "./ConnectProviderOptions";
+import { detectAccounts } from "./detectAccounts";
 import { useProviderAuth } from "./useProviderAuth";
 
 function cancelUnownedLogin(): void {
@@ -33,6 +35,17 @@ export function ConnectProviderDialog({
 	const t = useT();
 	const settingsOpen = useAppStore((s) => s.settingsOpen);
 	const auth = useProviderAuth({ ownsLoginDialog: !settingsOpen });
+	const [detected, setDetected] = useState<DetectedAccount[] | null>(null);
+
+	useEffect(() => {
+		let cancelled = false;
+		void detectAccounts().then((accounts) => {
+			if (!cancelled) setDetected(accounts);
+		});
+		return () => {
+			cancelled = true;
+		};
+	}, []);
 
 	return (
 		<>
@@ -54,6 +67,7 @@ export function ConnectProviderDialog({
 					</DialogHeader>
 					<ConnectProviderOptions
 						auth={auth}
+						detected={detected}
 						onShowAll={() => {
 							onClose();
 							useAppStore.getState().openSettings("providers");

@@ -85,6 +85,7 @@ import { suggestPrDescription } from "../assist";
 import {
 	cancelLogin,
 	connectJbcentral,
+	detectModels,
 	disconnectJbcentral,
 	getJbcentralQuota,
 	getProviderStatus,
@@ -1174,6 +1175,7 @@ const handlers: WsHandlers = {
 		observeSetupRead(getProviderStatus, (report) => ({
 			provider_available: providerAvailability(report),
 		})),
+	"provider.detect": async () => ({ accounts: await detectModels() }),
 	"provider.loginStart": (p) => {
 		const type = p.type ?? "oauth";
 		const capture = additionalCapture();

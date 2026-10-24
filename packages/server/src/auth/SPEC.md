@@ -65,6 +65,15 @@ ourselves and never surface a credential value over the wire.
       keyed auth report `false` (Sign-out would no-op, so the strip hides it). Central's own lifecycle is only
       the dedicated closed `jbcentral` status, never a row; the `central` kind on a replaced built-in is an
       identity fact, never inferred from model URLs or configuration.
+  - `detectModels` — `provider.detect`'s onboarding hint: which **other local tools** are already signed in
+    to an account a pi provider can sign in with (Claude Code → `anthropic`, Codex's ChatGPT sign-in →
+    `openai-codex`, Copilot → `github-copilot`), plus a plan label when the tool records one. It reads only
+    those tools' own config files at their documented locations (`CLAUDE_CONFIG_DIR`, `CODEX_HOME`,
+    `XDG_CONFIG_HOME`/`LOCALAPPDATA` honoured), never pi's `auth.json` and never the macOS Keychain — a
+    Keychain read raises a system access prompt, so a Keychain-only Claude Code sign-in is seen through the
+    non-secret `oauthAccount` in `.claude.json`. Detection **suggests, never borrows**: the user still signs
+    in through pi's own flow, because reusing another tool's rotating refresh token would sign one of the
+    two out. No credential value leaves the function; an API-key-only config is not a sign-in.
   - `providerLogin` — the in-app credential **writes**, session-less (a login runs on the Welcome screen
     before any session exists), so a `loginId`-keyed sibling of `agent/webUiContext`:
     - `startLogin(providerId, type = "oauth")` → `{ loginId }` **synchronously**; `runtime.login(id,
@@ -141,6 +150,7 @@ ourselves and never surface a credential value over the wire.
     action results use only the closed contracts taxonomy—never child output, extension contents, diagnostics,
     proxy data, raw models, or arbitrary thrown messages.
 - **Public surface (barrel):** `getProviderStatus`, `buildProviderReport` (+ `ProviderStatusSources`);
+  `detectModels`;
   `startLogin`, `resolveLogin`, `cancelLogin`, `cancelAllLogins`, `logoutProvider`,
   `setLoginPublisher`; `initializeJbcentralRuntime`, `stopJbcentralRuntime`, `getJbcentralStatus`,
   `getJbcentralQuota`, `connectJbcentral`, `disconnectJbcentral`, `startProxyJbcentral`,

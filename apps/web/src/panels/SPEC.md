@@ -377,7 +377,14 @@ the overlay, and filtering never resizes it): the real `JetBrainsAiCard` pinned 
 then OAuth-capable providers, then key-only ones, each row the Settings `ProviderRow` with whichever of
 Sign in / API key it supports. The unfiltered list skips the recommended provider; a search covers every provider, it
 included. One list rather than separate subscription / API-key buckets, because users look for a provider
-by name, not by auth method. A **See all providers & advanced settings** link closes the overlay and opens Settings → Providers. No quota or other global
+by name, not by auth method. **Detected accounts replace the generic pick.** The top slot first asks the host
+`provider.detect` (`detectAccounts`; an older host or a failure counts as nothing found) — the wizard on
+**Get started**, the overlay on open — and shows a searching line until it answers. Every detected account
+whose pi provider is unconfigured and OAuth-capable becomes a **Found on this computer** sign-in (e.g. "Sign
+in with Claude" when Claude Code is signed in, with the tool's plan as a badge) that starts that provider's
+ordinary OAuth flow, and those providers leave the list; only when nothing usable is found does the Anthropic
+Recommended block appear. It is a suggestion, never a silent sign-in: the host reports which tools are
+signed in, and the user still authorises ThinkRail through pi's own flow. A **See all providers & advanced settings** link closes the overlay and opens Settings → Providers. No quota or other global
 settings appear here; the full `ProvidersSettings` stays the power-user surface. Data and login wiring are
 the shared **`useProviderAuth`** hook, which `ProvidersSettings` uses too: one `provider.status` loader
 (re-read on `providerVersion` and on a successful login), `startLogin` / `logout`, and the store-driven

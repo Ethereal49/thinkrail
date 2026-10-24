@@ -682,6 +682,14 @@ export interface ProviderStatus {
 	canLogout?: boolean;
 }
 
+export type DetectedAccountSource = "claude-code" | "codex" | "github-copilot";
+
+export interface DetectedAccount {
+	providerId: string;
+	source: DetectedAccountSource;
+	plan?: string;
+}
+
 export interface JbcentralInstall {
 	platform: string;
 	shell: "bash" | "powershell";

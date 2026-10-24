@@ -1,5 +1,5 @@
-import { existsSync, readFileSync, rmSync } from "node:fs";
-import { join } from "node:path";
+import { existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { dirname, join } from "node:path";
 import { expect, type Locator, type Page, test } from "@playwright/test";
 import type { AppConfig } from "@thinkrail/contracts";
 import { seedAnalyticsConsent } from "./fixtures/analyticsConsent";
@@ -189,6 +189,41 @@ test("a cold start shows the onboarding wizard once; Skip setup persists", async
 	await page.reload();
 	await expect(page.getByTestId("welcome-cta")).toContainText("Start a new project");
 	await expect(page.getByTestId("onboarding-wizard")).toHaveCount(0);
+});
+
+test("Get started detects a signed-in Claude Code and recommends its sign-in", async ({
+	page,
+	baseURL,
+}) => {
+	const claudeConfig = join(E2E_HOME_DIR, ".claude", ".claude.json");
+	mkdirSync(dirname(claudeConfig), { recursive: true });
+	writeFileSync(claudeConfig, JSON.stringify({ oauthAccount: { accountUuid: "e2e" } }));
+	try {
+		await setOnboardingDismissed(baseURL, false);
+		await openAppFresh(page);
+		test.skip(
+			await anyProviderConfigured(baseURL),
+			"an ambient provider makes this host a warm start",
+		);
+
+		const wizard = page.getByTestId("onboarding-wizard");
+		await wizard.getByTestId("onboarding-start").click();
+		const detected = wizard.getByTestId("connect-detected");
+		await expect(detected).toHaveCount(1);
+		await expect(detected).toHaveAttribute("data-source", "claude-code");
+		await expect(detected).toHaveAttribute("data-provider", "anthropic");
+		await expect(wizard.getByTestId("connect-option-recommended")).toHaveCount(0);
+		await expect(
+			wizard.getByTestId("connect-provider-list").locator('[data-provider="anthropic"]'),
+		).toHaveCount(0);
+
+		await detected.click();
+		await expect(page.getByTestId("login-dialog")).toHaveAttribute("data-provider", "anthropic");
+		await page.getByTestId("login-cancel").click();
+		await expect(page.getByTestId("login-dialog")).toHaveCount(0);
+	} finally {
+		rmSync(claudeConfig, { force: true });
+	}
 });
 
 test("the analytics consent prompt waits until the wizard ends", async ({ page, baseURL }) => {

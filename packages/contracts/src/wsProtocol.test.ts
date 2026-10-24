@@ -251,6 +251,7 @@ test("project create and the onboarding dismissal are pinned to v91", () => {
 	expect(PROTOCOL_VERSION).toBe(91);
 	expect(ONBOARDING_PROTOCOL_VERSION).toBe(91);
 	expect(WS_METHODS.projectCreate).toBe("project.create");
+	expect(WS_METHODS.providerDetect).toBe("provider.detect");
 	expect(DEFAULT_CONFIG.onboardingDismissed).toBe(false);
 });
 

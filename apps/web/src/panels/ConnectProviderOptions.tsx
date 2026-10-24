@@ -1,10 +1,11 @@
 import {
 	RiArrowRightLine as ArrowRight,
 	RiKeyLine as KeyRound,
+	RiLoader4Line as Loader2,
 	RiLoginBoxLine as LogIn,
 	RiSearchLine as Search,
 } from "@remixicon/react";
-import type { ProviderStatus } from "@thinkrail/contracts";
+import type { DetectedAccount, DetectedAccountSource, ProviderStatus } from "@thinkrail/contracts";
 import type { MessageKey } from "@thinkrail/locales";
 import { t as translate, useT } from "@thinkrail/locales/react";
 import { Button } from "@thinkrail/ui/button";
@@ -33,6 +34,26 @@ const RECOMMENDED_COPY = {
 	},
 } as const satisfies Record<Method, { title: MessageKey; detail: MessageKey }>;
 
+const DETECTED_COPY = {
+	"claude-code": {
+		title: "panels.connectProvider.detected.claudeCodeTitle",
+		detail: "panels.connectProvider.detected.claudeCodeDetail",
+	},
+	codex: {
+		title: "panels.connectProvider.detected.codexTitle",
+		detail: "panels.connectProvider.detected.codexDetail",
+	},
+	"github-copilot": {
+		title: "panels.connectProvider.detected.copilotTitle",
+		detail: "panels.connectProvider.detected.copilotDetail",
+	},
+} as const satisfies Record<DetectedAccountSource, { title: MessageKey; detail: MessageKey }>;
+
+interface DetectedChoice {
+	account: DetectedAccount;
+	provider: ProviderStatus;
+}
+
 function methodsOf(provider: ProviderStatus): Method[] {
 	return [
 		...(provider.canOAuth ? (["oauth"] as const) : []),
@@ -58,10 +79,12 @@ export async function announceProviderConnected(provider: ProviderStatus): Promi
 
 export function ConnectProviderOptions({
 	auth,
+	detected,
 	onShowAll,
 	onConnected,
 }: {
 	auth: ProviderAuth;
+	detected: readonly DetectedAccount[] | null;
 	onShowAll: () => void;
 	onConnected: (provider: ProviderStatus) => void;
 }) {
@@ -101,11 +124,20 @@ export function ConnectProviderOptions({
 	const unconfigured = report.providers.filter(
 		(p) => !p.configured && p.kind !== "central" && (p.canOAuth || p.canApiKey),
 	);
-	const recommended = unconfigured.find((p) => p.id === RECOMMENDED_PROVIDER);
+	const found = (detected ?? []).flatMap((account): DetectedChoice[] => {
+		const provider = unconfigured.find((p) => p.id === account.providerId && p.canOAuth);
+		return provider ? [{ account, provider }] : [];
+	});
+	const featured = new Set(found.map((choice) => choice.provider));
+	const recommended =
+		detected !== null && found.length === 0
+			? unconfigured.find((p) => p.id === RECOMMENDED_PROVIDER)
+			: undefined;
+	if (recommended) featured.add(recommended);
 	const query = search.trim().toLowerCase();
 	const others = unconfigured
 		.filter((p) =>
-			query ? p.name.toLowerCase().includes(query) || p.id.includes(query) : p !== recommended,
+			query ? p.name.toLowerCase().includes(query) || p.id.includes(query) : !featured.has(p),
 		)
 		.sort((a, b) => (b.canOAuth ? 1 : 0) - (a.canOAuth ? 1 : 0));
 	const showJetBrains = !query || JETBRAINS_AI_SEARCH.includes(query);
@@ -113,7 +145,38 @@ export function ConnectProviderOptions({
 
 	return (
 		<div data-testid="connect-provider-options" className="flex flex-col gap-12 text-left">
-			{recommended ? (
+			{detected === null ? (
+				<section
+					data-testid="connect-detecting"
+					className="flex items-center gap-8 rounded-sm border border-primary-muted bg-clip-padding bg-primary-subtle p-16 text-text-muted tr-text-ui"
+				>
+					<Loader2 className="size-16 shrink-0 animate-spin text-primary" />
+					{t("panels.connectProvider.detecting")}
+				</section>
+			) : found.length > 0 ? (
+				<section
+					data-testid="connect-option-detected"
+					className="flex flex-col gap-8 rounded-sm border border-primary-muted bg-clip-padding bg-primary-subtle p-16"
+				>
+					<span className="self-start rounded-full border border-primary-muted bg-clip-padding bg-primary-subtle px-8 py-2 tr-text-label-pill text-primary">
+						{t("panels.connectProvider.foundOnComputer")}
+					</span>
+					<div className="flex flex-col gap-8">
+						{found.map(({ account, provider }) => (
+							<DetectedChoiceButton
+								key={account.source}
+								account={account}
+								provider={provider}
+								busy={rowBusy(provider.id)}
+								onPick={() => connect(provider, "oauth")}
+							/>
+						))}
+					</div>
+					<span className="text-text-muted tr-text-metadata">
+						{t("panels.connectProvider.detectedNote")}
+					</span>
+				</section>
+			) : recommended ? (
 				<section
 					data-testid="connect-option-recommended"
 					className="flex flex-col gap-8 rounded-sm border border-primary-muted bg-clip-padding bg-primary-subtle p-16"
@@ -188,6 +251,43 @@ export function ConnectProviderOptions({
 				<ArrowRight className="size-14" />
 			</Button>
 		</div>
+	);
+}
+
+function DetectedChoiceButton({
+	account,
+	provider,
+	busy,
+	onPick,
+}: DetectedChoice & { busy: boolean; onPick: () => void }) {
+	const t = useT();
+	const copy = DETECTED_COPY[account.source];
+	return (
+		<button
+			type="button"
+			data-testid="connect-detected"
+			data-source={account.source}
+			data-provider={provider.id}
+			disabled={busy}
+			onClick={onPick}
+			className="flex min-w-0 items-start gap-8 rounded-sm border border-primary-muted bg-clip-padding bg-container-workspace-bg p-12 text-left transition-colors hover:bg-control-bg-hovered focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary disabled:opacity-50"
+		>
+			<LogIn className="mt-2 size-16 shrink-0 text-primary" />
+			<span className="flex min-w-0 flex-1 flex-col gap-2">
+				<span className="flex flex-wrap items-center gap-8">
+					<span className="tr-title-card text-text-default">{t(copy.title)}</span>
+					{account.plan ? (
+						<span className="rounded-full border border-border-default px-8 tr-text-label-pill text-text-muted">
+							{t("panels.connectProvider.detectedPlan", {
+								plan: account.plan.charAt(0).toUpperCase() + account.plan.slice(1),
+							})}
+						</span>
+					) : null}
+				</span>
+				<span className="text-text-muted tr-text-metadata">{t(copy.detail)}</span>
+			</span>
+			<ArrowRight className="mt-2 size-16 shrink-0 text-text-muted" />
+		</button>
 	);
 }
 

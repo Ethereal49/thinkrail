@@ -8,6 +8,7 @@ import type {
 	ChangeReceipt,
 	DelegationRunDetails,
 	DelegationRunStatus,
+	DetectedAccount,
 	DiffStats,
 	EditorInfo,
 	ExistingWorktreeCandidate,
@@ -311,6 +312,7 @@ export const WS_METHODS = {
 	modelSetContextWindow: "model.setContextWindow",
 	modelClampThinking: "model.clampThinking",
 	providerStatus: "provider.status",
+	providerDetect: "provider.detect",
 	providerLoginStart: "provider.loginStart",
 	providerLoginReply: "provider.loginReply",
 	providerLoginCancel: "provider.loginCancel",
@@ -889,6 +891,7 @@ export interface WsMethodMap {
 		result: ModelContextSetting[];
 	};
 	"provider.status": { params: Record<string, never>; result: ProviderStatusReport };
+	"provider.detect": { params: Record<string, never>; result: { accounts: DetectedAccount[] } };
 	"provider.loginStart": {
 		params: { providerId: string; type?: "oauth" | "api_key" };
 		result: { loginId: string };

@@ -552,7 +552,8 @@ default, narrow cross-ring guards, and the quit-confirmation rule both clients d
   an older host), **`project.inspect`** (classify a path) + **`project.init`**
   (`git init` + commit, then open) + **`project.create`** (`{ parentPath, name }` → the opened `Project`:
   make the folder `name` under `parentPath`, creating missing parents, then the same bootstrap as init;
-  `ONBOARDING_PROTOCOL_VERSION` pins its v91 introduction together with `AppConfig.onboardingDismissed`)
+  `ONBOARDING_PROTOCOL_VERSION` pins its v91 introduction together with `AppConfig.onboardingDismissed`
+  and `provider.detect`)
   + **`project.hasSpecs`** (lazy per-project "contains a registered
   spec?" for the Welcome screen — a full-tree walk, so requested only for the shown project,
   never eagerly for every project) / `workspace.*` — notably **`workspace.list { projectId,
@@ -594,7 +595,10 @@ default, narrow cross-ring guards, and the quit-confirmation rule both clients d
   **`model.clampThinking`** (pi's
   `clampThinkingLevel` for a `{model, level}` pair — the pre-session picker's effort adjustment, so no
   client re-derives pi's policy) / **`provider.status`**
-(the auth-provider status report; every read revalidates host-side) / the **`provider.*` in-app login**
+(the auth-provider status report; every read revalidates host-side) / **`provider.detect`** (v91: the
+  **`DetectedAccount`** list — accounts other local tools are already signed in to, each naming the pi
+  provider whose own sign-in it suggests plus an optional plan label; a hint only, never a credential) /
+  the **`provider.*` in-app login**
   (**`loginStart`** — mints a `loginId` and runs pi's login flow **detached** (`type` `"oauth"` |
   `"api_key"`, issue #97 — both auth routes ride one channel; a flow can take minutes and must
   not sit on the request nor block the WS pump) / **`loginReply`** — answers a live `select`/`prompt`,
