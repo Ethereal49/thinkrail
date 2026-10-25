@@ -554,6 +554,29 @@ answer-injection path, and the **restart repair** that keeps re-opened transcrip
     message. The count-aware cap also degrades a raw >2000px `read`-tool image to a note instead of a
     brick once a session crosses 21 images. Pure core (`guardOversizedImages`, `imageDimensions`)
     unit-tested with hand-built header bytes.
+  - `skillCarryover` — the post-compaction skill restorer: an inline extension in both
+    `buildResourceLoader`'s shared factories and `childBaseExtensionFactories`, so delegated children
+    carry it too. Pi's compaction summarizes a loaded skill's body away while the system prompt keeps
+    only its name and description, and `WORKFLOW_RULE` forbids re-routing work already routed. A
+    `SKILL.md` loaded by `read` — the normal path — is worse off: pi hands every tool result to the
+    summarizer cut to 2000 characters, so later rules never reach the summary. The agent then keeps
+    "following" a skill it can no longer see. Modeled on Claude Code's post-compaction re-attachment
+    of invoked skills: a **`context` handler** inserts ONE `thinkrail/skill-carryover` custom message
+    (`display: false`) right after the `compactionSummary` in every request while the branch has a
+    compaction. It restores each skill pi loaded (`before_agent_start`'s `systemPromptOptions.skills`)
+    whose latest load — a `parseSkillBlock` user block or a successful `read` resolving to that skill's
+    `filePath` (after pi's `@`/`~` handling and symlinks) — sits before the latest cut; reads of other `SKILL.md` files do not count. Bodies are
+    re-read from the admitted skill file (frontmatter stripped, wrapped like pi's `/skill:` block) and
+    budgeted at 5K tokens per skill and min(25K, 10% of the context window) in total, newest first,
+    truncated from the end with a pointer to the file. The text is memoized per compaction entry, so
+    the injected prefix stays cache-stable. A per-request injection is the only placement that reaches
+    the first request after **mid-run threshold** and **overflow-retry** compaction: a
+    `session_compact`-time `sendMessage` is deferred to `turn_end` while a run is active, so those
+    requests went out without it. Nothing is written to the session, so the carry-over never reaches
+    the next summarizer as user text and pi's "Already compacted" guard still holds. Rejected for now:
+    a custom `session_before_compact` summary that records the active workflow step (it would replace
+    pi's summarizer call and own its credentials). `skillCarryover.test.ts` drives a faux pi session
+    through manual, mid-run threshold and overflow-retry compaction.
   - `delegation` — ThinkRail's embedding of the portable **`pi-delegation`** core +
     **`pi-subagents`** layer ([[module-pi-delegation]], [[module-pi-subagents]]): binds what only
     the host knows — the delegation root under the data dir (`<dataDir>/delegation`),
@@ -657,9 +680,9 @@ answer-injection path, and the **restart repair** that keeps re-opened transcrip
     `pi-web-access` + `pi-spec-graph` + every registry extension's `childExtensions` (named inline,
     from [[submodule-server-extensions]]; none today) — deliberately not the parent's full set
     (rationale + the listed-children carve-out: core decision #25). **Every** child, opted in or not,
-    also loads the core's base set (`childBaseExtensionFactories`, same decision): just
-    `oversizedImageGuard`, since a child's `read` returns raw images under the shared settings (see the
-    `buildSessionSettings` bullet). Web-access reaches the child set via a **named bundled-seam
+    also loads the core's base set (`childBaseExtensionFactories`, same decision): `oversizedImageGuard`,
+    since a child's `read` returns raw images under the shared settings (see the `buildSessionSettings`
+    bullet), and `skillCarryover`, since children auto-compact under those settings too. Web-access reaches the child set via a **named bundled-seam
     field** (`BundledExtensions.webAccessFactory`) in the binary and a Bun `require` in dev — its raw
     third-party `.ts` must stay out of the strict tsc graph.
   - `extensions` — Pi resource wiring. Candidate generation loads the reviewed external Central path once
@@ -778,7 +801,8 @@ answer-injection path, and the **restart repair** that keeps re-opened transcrip
     `extensionFactories`: a **headless-search policy** (a `tool_call` hook defaulting
     `web_search`'s `workflow` to `"none"`, since pi-web-access would otherwise open a browser curator our
     `rpc` host can't render), `askUserQuestionExtension` (normalizes ask-only assistant batches),
-    `oversizedImageGuard` (the context-level image-size guard, see the `imageGuard` bullet), **and the
+    `oversizedImageGuard` (the context-level image-size guard, see the `imageGuard` bullet), `skillCarryover`
+    (see its bullet), **and the
     caller's `extraFactories`** — per-session host bindings (the workspace-bound subagents extension),
     value-imported so dev and the compiled binary take the same path. pi's own built-in extensions
     (`llama.cpp`, `codemode`, `tool-search`, `mcp`) are loaded only by pi's CLI; an SDK host opts in per

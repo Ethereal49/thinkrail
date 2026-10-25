@@ -120,6 +120,11 @@ full-output paths; run `mcp/results.test.ts`, `mcpEngine.test.ts`, web MCP card 
   discovery and prompt-template/frontmatter rules where public APIs cannot serve its read/edit UI.
   Prefer public discovery/parsing APIs when they meet those needs; retain parity coverage in history,
   template and composer tests until then.
+- **Skill bodies across compaction** — [[submodule-server-agent]], `skillCarryover.ts`. Pi's compaction
+  summarizes loaded skill text away (a `read` result reaches the summarizer cut to 2000 characters) and
+  nothing re-supplies it, so a host `context` handler re-attaches compacted skill bodies to every
+  request after a compaction. Remove it when pi's compaction preserves or re-attaches loaded skills
+  natively; verify with `skillCarryover.test.ts` and `bun run e2e:full e2e/skill-after-compaction.live.spec.ts`.
 
 ## Not temporary SDK workarounds
 

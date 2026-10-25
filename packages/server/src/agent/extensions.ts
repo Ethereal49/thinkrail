@@ -30,6 +30,7 @@ import { oversizedImageGuard } from "./imageGuard";
 import { requestReviewExtension } from "./requestReviewTool";
 import { reviewToolExtension } from "./reviewTool";
 import { decideSkill, type SkillAdmissionContext } from "./skillAdmission";
+import { skillCarryover } from "./skillCarryover";
 import {
 	type CompatibilitySkillSource,
 	candidateCompatibilitySkillRoots,
@@ -210,7 +211,7 @@ export function disabledExtensions(): ReadonlySet<string> {
 const isExtensionDisabled = (name: string): boolean => disabledExtensions().has(name);
 
 export function childBaseExtensionFactories(): InlineExtension[] {
-	return [oversizedImageGuard];
+	return [oversizedImageGuard, skillCarryover];
 }
 
 export function childExtensionFactories(): InlineExtension[] {
@@ -239,6 +240,7 @@ export async function buildResourceLoader(
 		requestReviewExtension,
 		setTitleExtension,
 		oversizedImageGuard,
+		skillCarryover,
 		...extraFactories,
 	];
 	const extensionFactories = bundled ? [...bundled.factories, ...sharedFactories] : sharedFactories;
