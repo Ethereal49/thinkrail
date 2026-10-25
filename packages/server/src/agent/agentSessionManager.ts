@@ -713,7 +713,7 @@ function enabledExtensionMissing(session: AgentSession, disabled: ReadonlySet<st
 	);
 	return serverExtensions.some(
 		({ extension }) =>
-			extension.extensions.length > 0 &&
+			(extension.extensions.length > 0 || extension.sessionExtensions !== undefined) &&
 			!disabled.has(extension.name) &&
 			!present.has(extension.name),
 	);
