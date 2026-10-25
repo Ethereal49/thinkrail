@@ -596,7 +596,8 @@ answer-injection path, and the **restart repair** that keeps re-opened transcrip
     open session until its next resource reload — pi cannot unload an extension, and reloading on every
     disable would bust the prompt cache. The reverse is the one reload: an enabled extension the session
     never loaded (created while it was off) and that did not fail to load triggers a gated
-    `requestSessionReload`. Registration applies the same reconciliation, and a completed reload reapplies
+    `requestSessionReload`. An extension counts as loadable when it has static or per-session parent
+    factories. Registration applies the same reconciliation, and a completed reload reapplies
     it without requesting another reload, so a toggle that lands mid-reload converges.
     The **`set_title`** tool (`titleTool.ts`) is how chats and workspaces get named: the main agent calls it
     with `chat_title?` / `workspace_name?` / `branch?` (English kebab slug). It is always registered and
