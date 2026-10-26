@@ -8,6 +8,7 @@ import {
 	RiAddLine as Plus,
 	RiChat3Fill,
 	RiChat3Line,
+	RiShareForwardLine,
 	RiDeleteBin6Line as Trash2,
 } from "@remixicon/react";
 import type { EditorInfo, Workspace } from "@thinkrail/contracts";
@@ -42,7 +43,13 @@ import {
 	type WorkspaceReadAction,
 } from "../store";
 import { ConfirmDialog } from "./ConfirmDialog";
-import { deleteProjectlessChat, inspectProjectlessChat, startProjectlessChat } from "./chatActions";
+import { ContinueChatDialog } from "./ContinueChatDialog";
+import {
+	deleteProjectlessChat,
+	inspectProjectlessChat,
+	startProjectlessChat,
+	supportsChatContinuation,
+} from "./chatActions";
 import {
 	loadProjectWorkspaces,
 	markWorkspaceRead,
@@ -148,10 +155,18 @@ function ChatRow({
 	const t = useT();
 	const [menuOpen, setMenuOpen] = useState(false);
 	const [confirmOpen, setConfirmOpen] = useState(false);
+	const [continueOpen, setContinueOpen] = useState(false);
 	const [files, setFiles] = useState<{ files: number; truncated: boolean } | null>(null);
 	const inspecting = useRef(false);
 	const pending = workspace.deletionPending === true;
 	const Icon = isActive ? RiChat3Fill : RiChat3Line;
+	const canContinue = useAppStore((s) => supportsChatContinuation(s.protocolVersion));
+	const continuedProject = useAppStore((s) => {
+		const link = workspace.continuedTo?.at(-1);
+		return link
+			? (s.projects.find((project) => project.id === link.projectId)?.name ?? null)
+			: null;
+	});
 
 	const openConfirm = () => {
 		setFiles(null);
@@ -217,6 +232,13 @@ function ChatRow({
 							<span className="truncate text-feedback-warning tr-text-metadata leading-tight">
 								{t("panels.chats.deletionPending")}
 							</span>
+						) : continuedProject ? (
+							<span
+								data-testid="chat-continued"
+								className="truncate text-text-subtle tr-text-metadata leading-tight"
+							>
+								{t("panels.chats.continuedTo", { project: continuedProject })}
+							</span>
 						) : null}
 					</span>
 				</button>
@@ -269,6 +291,18 @@ function ChatRow({
 										{t("panels.projectTree.markUnread")}
 									</DropdownMenuItem>
 								) : null}
+								{canContinue ? (
+									<>
+										<DropdownMenuSeparator />
+										<DropdownMenuItem
+											data-testid="chat-continue"
+											onSelect={() => setContinueOpen(true)}
+										>
+											<RiShareForwardLine />
+											{t("panels.chats.continueInWorkspace")}
+										</DropdownMenuItem>
+									</>
+								) : null}
 								<DropdownMenuSeparator />
 							</>
 						)}
@@ -296,6 +330,12 @@ function ChatRow({
 				destructive
 				confirmTestId="confirm-delete-chat"
 				onConfirm={() => void deleteProjectlessChat(workspace.id)}
+			/>
+			<ContinueChatDialog
+				chat={workspace}
+				title={title}
+				open={continueOpen}
+				onOpenChange={setContinueOpen}
 			/>
 		</li>
 	);
