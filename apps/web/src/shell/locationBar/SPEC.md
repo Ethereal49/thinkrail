@@ -27,8 +27,9 @@ actions through the panels-owned ship runner; it owns no host state.
   without a project** the bar reads `Chats › <title>` (`data-context="chat"`): the project segment shows
   the Chats container (its switcher lists **Chats** above the repositories — picking it opens the newest
   chat or starts one — and offers no Project Home for it), `ChatSegment` shows the conversation's title
-  from the host's state record with a menu of sibling chats, New chat, Copy path, Reveal and Delete
-  chat…, and no branch, remote or pull-request segment is rendered — there is no repository to ask.
+  from the host's state record with a menu of sibling chats, New chat, Copy path, Reveal, Continue in
+  workspace… and Delete chat…, and no branch, remote or pull-request segment is rendered — there is no
+  repository to ask.
 - **Public surface (`index.ts`):**
   - `LocationBar`
 - **Allowed deps:** `store` (projects, workspaces, session state, diff base selector, toasts), `transport`
