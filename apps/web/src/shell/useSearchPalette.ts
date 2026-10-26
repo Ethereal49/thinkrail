@@ -29,6 +29,7 @@ import {
 	commandItems,
 	type PaletteHost,
 	type PaletteItem,
+	type PaletteStart,
 	type SearchPaletteProps,
 	type SearchScope,
 	waitingItems,
@@ -191,7 +192,7 @@ function useChatTitleBackfill(): Record<string, string> {
 }
 
 export interface SearchPaletteOptions {
-	readonly openNewWorkspace: (projectId: string) => void;
+	readonly openNewWorkspace: (projectId: string, initialPrompt?: string) => void;
 	readonly toggleProjectsHome: () => void;
 	readonly pickAndOpenProject: () => Promise<void>;
 	readonly hasUpdateSettings: boolean;
@@ -269,6 +270,14 @@ export function useSearchPalette(options: SearchPaletteOptions): SearchPalettePr
 		}),
 		[online, contextProject, activeWorkspaceId, protocolVersion],
 	);
+	const openNewWorkspace = options.openNewWorkspace;
+	const start = useMemo<PaletteStart | undefined>(() => {
+		if (!contextProject) return undefined;
+		return {
+			openDialog: (text) => openNewWorkspace(contextProject.id, text),
+			...(online ? {} : { disabledReason: t("search.palette.offlineReason") }),
+		};
+	}, [contextProject, online, openNewWorkspace, t]);
 
 	const binding = useMemo(() => {
 		const store = () => useAppStore.getState();
@@ -417,6 +426,7 @@ export function useSearchPalette(options: SearchPaletteOptions): SearchPalettePr
 		onClose: () => useAppStore.getState().closeSearch(),
 		scopes: hostSearch ? HOST_SCOPES : LOCAL_SCOPES,
 		...(host ? { host } : {}),
+		...(start ? { start } : {}),
 		...(online
 			? hostSearch
 				? {}
