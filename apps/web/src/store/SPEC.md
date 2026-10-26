@@ -742,8 +742,10 @@ branch's review — a commit sha means nothing in another worktree — and dropp
   `reconcileProjectNavigation`'s project loss), `selectChatsContainer`, `selectChatWorkspaces` (newest
   activity first), `selectChatWorkspaceTitle` (the host's `SessionStateRecord.title`, also the first
   answer of `selectKnownChatTitle`), `supportsProjectlessChats`; the `chatContinuations` slice
-  (`applyChatContinuation` from the `chat.continuation` push — host-owned phases by operation id, read by
-  the transcript's continuation card and by the shell's follow hook) — the layout placement selectors (recursive center plus left/right/bottom auxiliary
+  (`applyChatContinuation` from the `chat.continuation` push or a status read — host-owned phases by
+  operation id, read by the transcript's continuation card and by the shell's follow hook) and
+  `initiatedContinuations` (`noteInitiatedContinuation` / `forgetInitiatedContinuation`: the gestures
+  this client made, the only ones it follows) — the layout placement selectors (recursive center plus left/right/bottom auxiliary
   groups), `selectAttentionCenterTab` (the selected resource in local last center focus),
   `selectCurrentRouteChatTarget` (exact-chat intent only while its workspace and stamped navigation remain
   current), `selectSkillsStale`, **`selectDiffScope` + `BRANCH_SCOPE`** (what a workspace's

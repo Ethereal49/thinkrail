@@ -3,6 +3,7 @@ import {
 	RiFileCopyLine as Copy,
 	RiFolderOpenLine as FolderOpen,
 	RiAddLine as Plus,
+	RiShareForwardLine,
 	RiDeleteBin6Line as Trash2,
 } from "@remixicon/react";
 import type { Workspace } from "@thinkrail/contracts";
@@ -20,7 +21,12 @@ import { useShallow } from "zustand/react/shallow";
 import { RunningIcon } from "../../components/RunningIcon";
 import { copyText } from "../../lib";
 import { ConfirmDialog } from "../../panels/ConfirmDialog";
-import { deleteProjectlessChat, startProjectlessChat } from "../../panels/chatActions";
+import { ContinueChatDialog } from "../../panels/ContinueChatDialog";
+import {
+	deleteProjectlessChat,
+	startProjectlessChat,
+	supportsChatContinuation,
+} from "../../panels/chatActions";
 import { revealWorkspace } from "../../panels/workspaceActions";
 import {
 	selectChatWorkspaces,
@@ -44,6 +50,8 @@ export function ChatSegment({ workspace }: { workspace: Workspace }) {
 		),
 	);
 	const [confirmOpen, setConfirmOpen] = useState(false);
+	const [continueOpen, setContinueOpen] = useState(false);
+	const canContinue = useAppStore((s) => supportsChatContinuation(s.protocolVersion));
 	return (
 		<Segment
 			caption={t("shell.location.chat.caption")}
@@ -93,6 +101,18 @@ export function ChatSegment({ workspace }: { workspace: Workspace }) {
 						<FolderOpen />
 						{t("shell.location.workspace.reveal")}
 					</DropdownMenuItem>
+					{canContinue ? (
+						<>
+							<DropdownMenuSeparator />
+							<DropdownMenuItem
+								data-testid="scope-chat-continue"
+								onSelect={() => setContinueOpen(true)}
+							>
+								<RiShareForwardLine />
+								{t("panels.chats.continueInWorkspace")}
+							</DropdownMenuItem>
+						</>
+					) : null}
 					<DropdownMenuSeparator />
 					<DropdownMenuItem
 						data-testid="scope-chat-delete"
@@ -113,6 +133,12 @@ export function ChatSegment({ workspace }: { workspace: Workspace }) {
 				destructive
 				confirmTestId="confirm-delete-chat"
 				onConfirm={() => void deleteProjectlessChat(workspace.id)}
+			/>
+			<ContinueChatDialog
+				chat={workspace}
+				title={title}
+				open={continueOpen}
+				onOpenChange={setContinueOpen}
 			/>
 		</Segment>
 	);
