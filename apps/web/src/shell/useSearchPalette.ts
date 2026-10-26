@@ -1,4 +1,5 @@
 import {
+	RiChat3Line,
 	RiExternalLinkLine,
 	RiFileCopyLine,
 	RiHome4Line,
@@ -9,6 +10,7 @@ import { t as globalT, useT } from "@thinkrail/locales/react";
 import { useEffect, useMemo, useState } from "react";
 import type { Command, CommandContext } from "../commands";
 import { copyText } from "../lib";
+import { canStartProjectlessChat, startProjectlessChat } from "../panels/chatActions";
 import { enterDefaultWorkspace } from "../panels/defaultWorkspace";
 import { startChatInTab } from "../panels/openChat";
 import { openFileInTab } from "../panels/openTabs";
@@ -37,6 +39,7 @@ import {
 import {
 	selectActiveWorkspace,
 	selectContextProject,
+	selectContextRepoProject,
 	selectHistoryTarget,
 	selectKnownChatTitle,
 	selectSwitcherGroups,
@@ -192,7 +195,7 @@ function useChatTitleBackfill(): Record<string, string> {
 }
 
 export interface SearchPaletteOptions {
-	readonly openNewWorkspace: (projectId: string, initialPrompt?: string) => void;
+	readonly openNewWorkspace: (projectId: string | null, initialPrompt?: string) => void;
 	readonly toggleProjectsHome: () => void;
 	readonly pickAndOpenProject: () => Promise<void>;
 	readonly hasUpdateSettings: boolean;
@@ -212,6 +215,8 @@ export function useSearchPalette(options: SearchPaletteOptions): SearchPalettePr
 	const activeWorkspaceId = useAppStore((s) => s.activeWorkspaceId);
 	const activeWorkspace = useAppStore(selectActiveWorkspace);
 	const contextProject = useAppStore(selectContextProject);
+	const contextRepoProject = useAppStore(selectContextRepoProject);
+	const canStartChat = useAppStore(canStartProjectlessChat);
 	const historySessionId = useAppStore((s) => selectHistoryTarget(s)?.sessionId ?? null);
 	const readAction = useAppStore((s) =>
 		activeWorkspaceId && supportsWorkspaceReadState(s.protocolVersion)
@@ -264,20 +269,20 @@ export function useSearchPalette(options: SearchPaletteOptions): SearchPalettePr
 	const context: CommandContext = useMemo(
 		() => ({
 			online,
-			projectId: contextProject?.id ?? null,
+			projectId: contextRepoProject?.id ?? null,
 			workspaceId: activeWorkspaceId,
 			protocolVersion,
 		}),
-		[online, contextProject, activeWorkspaceId, protocolVersion],
+		[online, contextRepoProject, activeWorkspaceId, protocolVersion],
 	);
 	const openNewWorkspace = options.openNewWorkspace;
 	const start = useMemo<PaletteStart | undefined>(() => {
-		if (!contextProject) return undefined;
+		if (!contextRepoProject && !canStartChat) return undefined;
 		return {
-			openDialog: (text) => openNewWorkspace(contextProject.id, text),
+			openDialog: (text) => openNewWorkspace(contextRepoProject?.id ?? null, text),
 			...(online ? {} : { disabledReason: t("search.palette.offlineReason") }),
 		};
-	}, [contextProject, online, openNewWorkspace, t]);
+	}, [contextRepoProject, canStartChat, online, openNewWorkspace, t]);
 
 	const binding = useMemo(() => {
 		const store = () => useAppStore.getState();
@@ -321,7 +326,7 @@ export function useSearchPalette(options: SearchPaletteOptions): SearchPalettePr
 		};
 		const commands: Command[] = [
 			...buildCommands(deps),
-			...(contextProject
+			...(contextRepoProject
 				? [
 						{
 							id: "workspace.openDefault",
@@ -330,7 +335,20 @@ export function useSearchPalette(options: SearchPaletteOptions): SearchPalettePr
 							icon: RiHome4Line,
 							keywords: ["default", "project folder", "no worktree"],
 							mutates: true,
-							run: () => void enterDefaultWorkspace(contextProject.id),
+							run: () => void enterDefaultWorkspace(contextRepoProject.id),
+						},
+					]
+				: []),
+			...(canStartChat
+				? [
+						{
+							id: "chat.newProjectless",
+							title: t("commands.chat.newProjectless"),
+							group: "work" as const,
+							icon: RiChat3Line,
+							keywords: ["chat", "no project", "scratch", "quick"],
+							mutates: true,
+							run: () => void startProjectlessChat(),
 						},
 					]
 				: []),
@@ -412,6 +430,8 @@ export function useSearchPalette(options: SearchPaletteOptions): SearchPalettePr
 		settled,
 		options,
 		contextProject,
+		contextRepoProject,
+		canStartChat,
 		editors,
 		projects,
 		workspaces,

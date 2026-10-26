@@ -118,6 +118,7 @@ import {
 	selectChatAttended,
 	selectFilesTreeView,
 	selectLayoutResourcePlacement,
+	selectRepoProjects,
 	selectSupportsMcp,
 	selectWorkspaceById,
 	selectWorkspaceNavTick,
@@ -1537,7 +1538,7 @@ function reconcileProjectNavigation(
 	const currentProjectId = selectActiveWorkspaceProjectId(state) ?? state.selectedProjectId;
 	if (!currentProjectId || projects.some((project) => project.id === currentProjectId)) return {};
 	return {
-		selectedProjectId: projects[0]?.id ?? null,
+		selectedProjectId: selectRepoProjects({ projects })[0]?.id ?? null,
 		activeWorkspaceId: null,
 	};
 }

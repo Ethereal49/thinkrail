@@ -10,6 +10,8 @@ import type { MessageKey } from "@thinkrail/locales";
 import type { Translator } from "@thinkrail/locales/react";
 import {
 	getSessionAttention,
+	isChatsContainer,
+	isChatWorkspace,
 	isDefaultWorkspace,
 	type SessionAttention,
 	type SwitcherSession,
@@ -83,6 +85,7 @@ export function buildWorkItems(input: WorkItemsInput): PaletteItem[] {
 	const items: PaletteItem[] = [];
 	const projectNames = new Map(state.projects.map((project) => [project.id, project.name]));
 	for (const project of state.projects) {
+		if (isChatsContainer(project)) continue;
 		items.push({
 			id: `project:${project.id}`,
 			kind: "project",
@@ -123,12 +126,13 @@ export function buildWorkItems(input: WorkItemsInput): PaletteItem[] {
 			const projectName = projectNames.get(record.projectId);
 			if (projectName === undefined) continue;
 			const title = knownTitle || t("search.item.untitledChat");
-			const where = workspace
-				? t("search.item.inWorkspace", {
-						project: projectName,
-						workspace: workspaceName(t, workspace),
-					})
-				: projectName;
+			const where =
+				workspace && !isChatWorkspace(workspace)
+					? t("search.item.inWorkspace", {
+							project: projectName,
+							workspace: workspaceName(t, workspace),
+						})
+					: projectName;
 			items.push({
 				id: `chat:${record.sessionId}`,
 				kind: "chat",
@@ -160,6 +164,7 @@ export function buildWorkItems(input: WorkItemsInput): PaletteItem[] {
 		if (attention) attentionByWorkspace.set(workspaceId, attention);
 	}
 	for (const workspace of workspaceById.values()) {
+		if (isChatWorkspace(workspace)) continue;
 		const projectName = projectNames.get(workspace.projectId) ?? "";
 		const review = workspace.review;
 		const attention = attentionByWorkspace.get(workspace.id);
